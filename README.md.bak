@@ -5,4 +5,3 @@ Zestaw przydatnych narzędzi zebranych w jednym miejscu
 timefn 		- dekorator do mierzenia czasu wywołania funkcji 
 memoize 	- dekorator do tworzenia casha dla wywołanej funkcji przy zadnym zbiorze parametrów
 typesafe 	- dekorator do sprawdzania poprawności typów argumentów oraz zwracanej przez funkcję wartości
-
