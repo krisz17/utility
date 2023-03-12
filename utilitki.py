@@ -1,5 +1,6 @@
 """
 Plik zawiera gotowy zestaw funkcji, najczęściej dekoratorów, przydatnych w codziennej pracy.
+Przed każdym dekoratorem w komentarzu podane są wymagane biblioteki do zaimportowania przed uruchomieniem kodu
 """
 
 # importuję potrzebne biblioteki
@@ -8,15 +9,16 @@ import time
 import functools
 import inspect
 from itertools import chain
-
-
+import random
+# pip install ratelimit
+from ratelimit import limits
+import requests
 
 
 #from functools import wraps
 #import time 
-
 def timefn(fn):
-    """Mierzy czas trwania funkcji. Można przerobić """
+    """Pomiar czasu wywołania funkcji do momentu zwrócenia przez nią wartości albo błędu"""
     @wraps(fn)
     def measure_time(*args, **kwargs):
         t1 = time.time()
@@ -45,17 +47,17 @@ if __name__ == "__main__":
 #import functools
 def memoize(func):
     """
-    Cache the results of the function so it doesn't need to be called
-    again, if the same arguments are provided a second time.
+    Zapamiętuję wynik funkcji przez co nie musi byc ponownie 
+    przeliczana, te same argumenty dadzą ten sam wynik.
     """
     cache = {}
     @functools.wraps(func)
     def wrapper(*args):
         if args in cache:
             return cache[args]
-        # This line is for demonstration only.
-        # Remove it before using it for real.
-        print('Calling %s()' % func.__name__)
+        # Kolejne 2 linie kodu są jedynie do celów prezentacyjnych, do wykasowania w d.
+        if __name__ == "__main__":
+            print('Wywołanie %s()' % func.__name__)
         result = func(*args)
         cache[args] = result
         return result
@@ -70,7 +72,7 @@ if __name__ == "__main__":
         return n*silnia(n-1)
     
     print(silnia(5))
-    print("a za drugim razem mamy już tylko:")
+    print("A za drugim razem mamy już tylko:")
     print(silnia(6))
 
 
@@ -146,3 +148,93 @@ if __name__ == "__main__"
     aa = prepend_rows(rows=['112', 'tre'], prefix = 123) 
 
 
+
+
+# Dekorator ponownie wywołuje funkcję jeżeli poprzednie wywołanie zwróciło wyjątek
+
+#import random
+#import time
+#from functools import wraps
+
+def retry(num_retries, exception_to_check, sleep_time=0):
+    """
+    Dekorator ponownie wywołuje funkcję jeżeli poprzednie wywołanie zwróciło wyjątek.
+    """
+    def decorate(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for i in range(1, num_retries+1):
+                try:
+                    return func(*args, **kwargs)
+                except exception_to_check as e:
+                    print(f"{func.__name__} raised {e.__class__.__name__}. Retrying...")
+                    if i < num_retries:
+                        time.sleep(sleep_time)
+            # Raise the exception if the function was not successful after the specified number of retries
+            raise e
+        return wrapper
+    return decorate
+
+if __name__ == "__main__":
+    @retry(num_retries=3, exception_to_check=TypeError, sleep_time=1)
+    def random_value(a):
+        value = random.randint(a)
+        return value
+    
+    random_value()
+
+
+
+
+# dodawanie jednostki do wyniku np, PLN, zł, km/h
+
+def use_unit(unit):
+    """Funkcja zwraca wartość o zadanej jednostce"""
+    use_unit.ureg = pint.UnitRegistry()
+    def decorator_use_unit(func):
+        @functools.wraps(func)
+        def wrapper_use_unit(*args, **kwargs):
+            value = func(*args, **kwargs)
+            return value * use_unit.ureg(unit)
+        return wrapper_use_unit
+    return decorator_use_unit
+
+if __name__ == "__main__":
+    @use_unit(" km/s")
+    def average_speed(distance, duration):
+        return distance / duration
+    
+
+# dekorator zabezpieczający przed zbyt częstum wykonaniem funkcji 
+#import time
+#from functools import wraps
+def rate_limited(max_per_second):
+    """Dekorator pauzujący zbyt częste wywołanie funkcji"""
+    min_interval = 1.0 / float(max_per_second)
+    def decorate(func):
+        last_time_called = [0.0]
+        @wraps(func)
+        def rate_limited_function(*args, **kargs):
+            elapsed = time.perf_counter() - last_time_called[0]
+            left_to_wait = min_interval - elapsed
+            if left_to_wait > 0:
+                time.sleep(left_to_wait)
+            ret = func(*args, **kargs)
+            last_time_called[0] = time.perf_counter()
+            return ret
+        return rate_limited_function
+    return decorate
+
+
+# pip install ratelimit
+#from ratelimit import limits
+#import requests
+
+if __name__ = "__main__":
+    FIFTEEN_MINUTES = 900
+    @limits(calls=15, period=FIFTEEN_MINUTES)
+    def call_api(url):
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise Exception('API response: {}'.format(response.status_code))
+        return response
